@@ -1,0 +1,9 @@
+{application, referl, [
+	{description, "Tools for refactoring"}
+	, {vsn, git}
+	, {applications, [
+		kernel
+		, stdlib
+		]}
+	, {env, []}
+	]}.
