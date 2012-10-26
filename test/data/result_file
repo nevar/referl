@@ -1,0 +1,90 @@
+%% @author Slava Yurin <YurinVV@ya.ru>
+%% @doc Kawaii printer for erlang syntax tree
+-module(test).
+
+-export([file/2, syntax_tree/2]).
+
+-define(PAPER, 80).
+
+-define(RIBBON, 75).
+
+-type rec(A, B) :: tuple(rec(A, A), rec(B, B)) | nil.
+
+-type test() :: integer().  %% test2
+
+-record(test,
+	{field1 = 1 :: integer() | integer(),        %% test1
+	 field2 = undefined :: atom() | list()}).
+
+-custom(term).
+
+%% @doc Kawaii printer
+-spec syntax_tree(erl_syntax:syntaxTree(), term(list(X), list(Y))) ->
+			 iolist().
+
+syntax_tree(SyntaxTree, Options) ->
+	Document = document:make_document(SyntaxTree, Options),
+	W = proplists:get_value(paper, Options, ?PAPER),
+	%% test3
+	L = proplists:get_value(ribbon, Options, ?RIBBON),
+	[syntax_tree_1(V1) || V1 <- [1, 2, 3, 4, 5], V1 > 2],
+	prettypr:format(Document, W, L),
+	A = #test{},
+	B = (m:d())#test.field2,
+	B = A#test.field2#test.field1#test.field3,
+	C = A#test{field1 = 2, field2 = 3},
+	{a, b, c, {d, e, f}},
+	[a, v, c | ABC],
+	receive
+		ok ->
+			ok;
+		not_ok ->
+			not_ok
+	after 6000 ->
+		ok
+	end,
+	.name2.nam3:test(),
+	'catch',
+	try 1 + 2 of
+		3 ->
+			ok;
+		_ ->
+			error
+	catch
+		error:Term ->
+			Term;
+		Term ->
+			Term;
+		exit:Reason ->
+			Reason
+	after
+		ok
+	end,
+	(1 + 2) * 3,
+	IsSubType = {atom, ?line(LHS), is_subtype}.
+
+tokens_tail(Other, More) ->
+	L = (?line(Other)),
+	[{'|', L} | tokens(Other, [{']', L} | More])].
+
+syntax_tree_1(X) ->
+	X * X.
+
+%% @doc Kawaii printer
+-spec file(File::file:filename(), list(integer() | tuple() | atom())) ->
+		  iolist().
+
+file(FileName, _) ->
+	{ok, Form} = epp_dodger:parse_file(FileName, [nofail]),
+	%% TODO: if exists error fail
+	Comment = erl_comment_scan:file(FileName),
+	SyntaxTree = erl_recomment:recomment_forms(Form, Comment),
+	syntax_tree(SyntaxTree, []),
+	+1.
+
+-spec foo(1..43) -> tuple(X, Y) when X :: atom(), Y :: list(integer()),
+				     Z :: atom(), T :: term();
+	 (list(Y)) -> Y when Y :: number().
+
+rule(X, Y) :-
+	X > Y.
