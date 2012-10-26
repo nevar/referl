@@ -23,7 +23,7 @@ TODO
 	3. Function parametrs to tuple
 	4. Generate spec
 	5. Remove import
-3. Move actions
+3. Move to other file
     1. Macro
 	2. Record
 	3. Function
