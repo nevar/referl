@@ -226,10 +226,9 @@ make_document_element(clause, Clause, Opt) ->
 		HeadGuard = append_guard(Head, Guard, Opt),
 		clause_body(HeadGuard, Body, floating_text(" :-"), Opt)
 	; true ->
-		exit(InClause),
 		function_clause(none, Patterns, Guard, Body, Opt)
 	end;
-% .. ; .. ; .. . // Erlang function clauses
+% name .. ; name .. ; name .. . // Erlang function clauses
 make_document_element(function, Function, Opt) ->
 	NewOpt = clear_p(Opt),
 	FunctionName = make_document(erl_syntax:function_name(Function), NewOpt),
@@ -577,8 +576,7 @@ clause_body(Begin, Body, Separator, Opt) ->
 	join_line([ClauseBegin, ClauseBody]).
 
 clauses(Clauses, ToDoc, Separator, InClause, Opt) ->
-	ClauseOptions = [{clause, InClause} | Opt],
-	join_line(list2doc(Clauses, ToDoc, Separator, ClauseOptions)).
+	join_line(list2doc(Clauses, ToDoc, Separator, [{clause, InClause} | Opt])).
 
 error_message({L, M, T}, Opt) when is_integer(L), is_atom(M) ->
 	case catch M:format_error()
