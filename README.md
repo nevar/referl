@@ -6,12 +6,21 @@ Referl is tool for refactoring erlang sourse code.
 Pretty printer
 ==============
 
+```erlang
+kawaiiprint:file(FileName, [])
+```
+
+Not tested
+==========
+
+1. Rename
+    1. Variable
+
 TODO
 ====
 
 1. Rename
-    1. Variable
-    2. Function
+    1. Function
 	3. Record
 	4. Recorf field
 	5. Macro
@@ -22,7 +31,7 @@ TODO
 	2. Reorder parametrs
 	3. Function parametrs to tuple
 	4. Generate spec
-	5. Remove import
+	5. Remove import (can do `erl_tidy`)
 3. Move to other file
     1. Macro
 	2. Record
