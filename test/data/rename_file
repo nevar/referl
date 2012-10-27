@@ -1,0 +1,45 @@
+%% @author Slava Yurin <YurinVV@ya.ru>
+%% @doc File for test
+-module(rename_file).
+
+-spec test(FileName::integer(), X::integer()) -> no_return().
+
+test(_, 0) ->
+	some,
+	clause,
+	for,
+	test;
+test(FileName, X) ->
+	FileName,
+	X,
+	ok.
+
+fun_in_fun_1(A, B) ->
+	fun(C, D) ->
+		A + B + C + D
+	end.
+
+fun_in_fun_2(A, B) ->
+	A,
+	B,
+	fun(A, B) ->
+		A + B
+	end.
+
+fun_in_fun_2(A, B) ->
+	A, B, fun(A, B) -> A + B end;
+fun_in_fun_2(C, D) ->
+	C, D, fun(A, B) -> A + B end;
+fun_in_fun_2(E, F) ->
+	E, F, fun(A, B) -> E + F + A + B end.
+
+
+fun_fun_fun(A, B) ->
+	A, B,
+	fun(A, B) ->
+		A, B,
+		fun(A, B) ->
+			A + 5,
+			B - 5
+		end
+	end.
