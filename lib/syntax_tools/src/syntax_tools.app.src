@@ -1,0 +1,8 @@
+{application, syntax_tools, [
+	{description, "Syntax tools"}
+	, {vsn, git}
+	, {applications, [
+		kernel
+		, stdlib
+		]}
+	]}.
