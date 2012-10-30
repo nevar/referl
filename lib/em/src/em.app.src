@@ -1,0 +1,10 @@
+{application, em, [
+	{description, "Erlymock Application"},
+	{vsn, git},
+	{registered, []},
+	{applications, [
+        kernel,
+        stdlib]},
+	{mod, {em, []}},
+	{env, []}
+]}.
