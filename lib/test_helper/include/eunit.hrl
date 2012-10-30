@@ -1,24 +1,27 @@
 -include_lib("eunit/include/eunit.hrl").
 
--define(EUNIT_TEST_NAME(Name),
-    fun(FunName) ->
-        [_, FunName1 | _] = string:tokens(FunName, " "),
+-define(EUNIT_TEST(Test),
+	(fun() ->
+		__Fun = Test,
+        [_, FunName1 | _] = string:tokens(??Test, " "),
         [FirstChar | TailFunName] =
 			re:replace(FunName1, "_", " ", [{return, list}, global]),
-        [string:to_upper(FirstChar) | TailFunName]
-    end(Name)).
+		FunName = [string:to_upper(FirstChar) | TailFunName],
+		case erlang:fun_info(Test, arity)
+			of {_, 0} ->
+				{FunName, ?_test(__Fun())}
+			; {_, 1} ->
+				fun(__Arg) -> {FunName, ?_test(__Fun(__Arg))} end
+		end
+	end)()).
 
--define(EUNIT_ARGS_TEST(Test),
-    fun(__Arg) -> {?EUNIT_TEST_NAME(??Test), ?_test(Test(__Arg))} end).
--define(EUNIT_TEST(Test), {?EUNIT_TEST_NAME(??Test), ?_test(Test())}).
-
--define(EUNIT_WAIT_FOR_EXIT(Pid, StopFun, Reason),
-	fun(__Pid, __StopFun) ->
+-define(EUNIT_WAIT_FOR_EXIT(__Pid, __StopFun, __Reason),
+	(fun() ->
         Monitor = monitor(process, __Pid),
         unlink(__Pid),
         __StopFun(__Pid),
-        receive {'DOWN', Monitor, _, _, Reason} -> ok end
-    end(Pid, StopFun)).
+        receive {'DOWN', Monitor, _, _, __Reason} -> ok end
+    end)()).
 -define(EUNIT_WAIT_FOR_EXIT(Pid, StopFun),
     ?EUNIT_WAIT_FOR_EXIT(Pid, StopFun, _)).
 
