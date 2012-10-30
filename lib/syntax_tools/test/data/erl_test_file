@@ -1,0 +1,21 @@
+-module(erl_test_file).
+
+-define(A, 1).
+-define(A(), 1).
+-define(A(X, Y), X + Y).
+
+% some comment only for test
+% =)
+f() ->
+	?A,
+	?A(),
+	?A(1, 2),
+	m:?X(),
+	% this is inner comment
+	try ok of
+		ok -> % comment at the end of line
+			ok
+	catch
+		m:?X() ->
+			ok
+	end.
