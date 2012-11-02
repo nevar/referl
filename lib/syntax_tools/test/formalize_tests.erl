@@ -40,13 +40,12 @@ check_tokens(FormalizePid, String, Line) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Moc      function %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Setup/cleanup function %%%%%%%%%%%%%%%%%%%%%%%
 setup() ->
-	WorkPid = spawn_link(fun() -> ok = formalize:tokens2syntax([]) end),
-	M = em:new(),
-	{WorkPid, M}.
+	meck:new(chain),
+	spawn(fun() -> ok = formalize:tokens2syntax([]) end).
 
-cleanup({WorkPid, M}) ->
-	?assertNot(is_process_alive(WorkPid)),
-	?EM_CHECK(M).
+cleanup(WorkPid) ->
+	exit(WorkPid, kill),
+	meck:unload(chain).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Test suite    function %%%%%%%%%%%%%%%%%%%%%%%
 main_test_() ->
@@ -55,13 +54,12 @@ main_test_() ->
 		]}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Test     function %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-test_formalize({WorkPid, M}) ->
+test_formalize(WorkPid) ->
 	TestProcess = self(),
-	em:stub(M, chain, send, [em:any(), next, em:any()],
-		?EM_RET_FUN(fun([Message, next, _]) ->
+	meck:expect(chain, send, fun(Message, next, _) ->
 			TestProcess ! Message
-		end)),
-	em:replay(M),
+		end),
 	FileName = "../test/data/erl_test_file",
 	{ok, Binary} = file:read_file(FileName),
-	check_tokens(WorkPid, binary_to_list(Binary), 1).
+	check_tokens(WorkPid, binary_to_list(Binary), 1),
+	?MECK_CHECK(chain).

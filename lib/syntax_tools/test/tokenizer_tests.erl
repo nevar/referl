@@ -3,7 +3,7 @@
 -include_lib("test_helper/include/eunit.hrl").
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Help-full function %%%%%%%%%%%%%%%%%%%%%%%%%%%
-check_tokens("", Line) ->
+check_tokens("", _) ->
 	receive eof ->
 		?assert(true)
 	after 1000 ->
@@ -25,18 +25,19 @@ check_tokens(String, Line) ->
 	; {tokens_form, Tokens} ->
 		?assertEqual(Expect, Tokens),
 		check_tokens(StringTail, NextLine)
+	after 1000 ->
+		?assert(timeout)
 	end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Moc      function %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Setup/cleanup function %%%%%%%%%%%%%%%%%%%%%%%
 setup() ->
-	WorkPid = spawn_link(fun() -> ok = tokenizer:source2token([]) end),
-	M = em:new(),
-	{WorkPid, M}.
+	meck:new(chain),
+	spawn(fun() -> ok = tokenizer:source2token([]) end).
 
-cleanup({WorkPid, M}) ->
-	?assertNot(is_process_alive(WorkPid)),
-	?EM_CHECK(M).
+cleanup(WorkPid) ->
+	meck:unload(chain),
+	exit(WorkPid, kill).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Test suite    function %%%%%%%%%%%%%%%%%%%%%%%
 main_test_() ->
@@ -46,28 +47,26 @@ main_test_() ->
 		]}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Test     function %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-test_file_tokenizer({WorkPid, M}) ->
+test_file_tokenizer(WorkPid) ->
 	TestProcess = self(),
-	em:stub(M, chain, send, [em:any(), next, em:any()],
-		?EM_RET_FUN(fun([Message, next, _]) ->
+	meck:expect(chain, send, fun(Message, next, _) ->
 			TestProcess ! Message
-		end)),
-	em:replay(M),
+		end),
 	FileName = "../test/data/erl_test_file",
 	WorkPid ! {file, FileName},
 	{ok, Binary} = file:read_file(FileName),
-	check_tokens(binary_to_list(Binary), 1).
+	check_tokens(binary_to_list(Binary), 1),
+	?MECK_CHECK(chain).
 
-test_string_tokenizer({WorkPid, M}) ->
+test_string_tokenizer(WorkPid) ->
 	TestProcess = self(),
-	em:stub(M, chain, send, [em:any(), next, em:any()],
-		?EM_RET_FUN(fun([Message, next, _]) ->
+	meck:expect(chain, send, fun(Message, next, _) ->
 			TestProcess ! Message
-		end)),
-	em:replay(M),
+		end),
 	FileName = "../test/data/erl_test_file",
 	{ok, Binary} = file:read_file(FileName),
 	String = binary_to_list(Binary),
 	WorkPid ! {string, String},
 	{ok, Binary} = file:read_file(FileName),
-	check_tokens(String, 1).
+	check_tokens(String, 1),
+	?MECK_CHECK(chain).
