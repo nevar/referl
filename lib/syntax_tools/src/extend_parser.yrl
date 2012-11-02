@@ -65,7 +65,8 @@ char integer float atom string var
 '!' '=' '::' '..' '...'
 '?'
 'spec' % helper
-'define' 'undef' 'ifdef' 'else' 'endif'
+'define' 'undef' 'ifdef' 'else' 'endif' 'ifndef'
+'include' 'include_lib'
 dot.
 
 Expect 2.
@@ -82,8 +83,11 @@ attribute -> '-' atom '(' typed_attr_val ')'    : build_typed_attribute('$2','$4
 attribute -> '-' 'define' '(' expr ',' expr ')' : build_preprocessor('$2', ['$4', '$6']).
 attribute -> '-' 'undef' '(' macro_define ')'   : build_preprocessor('$2', '$4').
 attribute -> '-' 'ifdef' '(' macro_define ')'   : build_preprocessor('$2', '$4').
+attribute -> '-' 'ifndef' '(' macro_define ')'  : build_preprocessor('$2', '$4').
 attribute -> '-' 'else'                         : build_preprocessor('$2', []).
 attribute -> '-' 'endif'	                    : build_preprocessor('$2', []).
+attribute -> '-' 'include' '(' strings ')'      : build_preprocessor('$2', '$4').
+attribute -> '-' 'include_lib' '(' strings ')'  : build_preprocessor('$2', '$4').
 attribute -> '-' 'spec' type_spec               : build_type_spec('$2', '$3').
 
 macro_define -> var : '$1'.
@@ -564,8 +568,9 @@ Erlang code.
       AbsForm :: abstract_form(),
       ErrorInfo :: error_info().
 parse_form([{'-',L1},{atom,L2,Atom}|Tokens]) when
-	Atom == 'define'; Atom == 'undef'; Atom == 'ifdef';
-	Atom == 'else'; Atom == 'endif'; Atom == 'spec'
+	Atom == define; Atom == undef; Atom == ifdef; Atom == ifndef;
+	Atom == else; Atom == endif; Atom == include; Atom == include_lib;
+	Atom == spec
 ->
     parse([{'-',L1},{Atom,L2}|Tokens]);
 parse_form(Tokens) ->
