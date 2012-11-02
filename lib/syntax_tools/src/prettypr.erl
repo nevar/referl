@@ -43,7 +43,7 @@
 
 -module(prettypr).
 
--export([above/2, beside/2, best/3, break/1, empty/0, floating/1,
+-export([above/2, beside/2, add/2, best/3, break/1, empty/0, floating/1,
 	 floating/3, follow/2, follow/3, format/1, format/2, format/3,
 	 nest/2, par/1, par/2, sep/1, text/1, null_text/1, text_par/1,
 	 text_par/2]).
@@ -293,6 +293,19 @@ nest(N, D) ->
 beside(D1, D2) ->
     #beside{d1 = D1, d2 = D2}.
 
+-spec add(document(), document()) -> document().
+
+add(D1, D2) when is_record(D2, nest) ->
+	D2#nest{d = add(D1, D2#nest.d)};
+add(D1, D2) when is_record(D2, above) ->
+	D2#above{d1 = add(D1, D2#above.d1)};
+add(D1, D2) when is_record(D2, sep) ->
+	[H | T] = D2#sep.ds,
+	D2#sep{ds = [add(D1, H) | T]};
+add(D1, D2) when is_record(D2, float) ->
+	D2#float{d = add(D1, D2#float.d)};
+add(D1, D2) ->
+    #beside{d1 = D1, d2 = D2}.
 
 %% =====================================================================
 %% @spec above(D1::document(), D2::document()) -> document()
