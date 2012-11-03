@@ -1,0 +1,8 @@
+{application, chainer, [
+	{description, "Filter chain manager"}
+	, {vsn, git}
+	, {applications, [
+		kernel
+		, stdlib
+		]}
+	]}.
