@@ -369,6 +369,7 @@ test_type_define(WorkPid) ->
 		"-type test(A, B) :: test:type1(atom()).\n",
 		"-type test(A, B) :: {A, B}.\n",
 		"-type test(A, B) :: {A, B} | term().\n",
+		"-type test(A, B) :: 'fun' | 'case'.\n",
 		"-type test() :: [].\n",
 		"-type test() :: 0..12.\n",
 		"-type test() :: 10.\n",
