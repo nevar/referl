@@ -28,24 +28,21 @@ check_tokens(FormalizePid, String, Line) ->
 	end,
 	receive eof ->
 		?assertEqual(Expect, eof)
-	; {form, FormScaned, []} ->
+	; {form, FormScaned} ->
 		?assertEqual(Expect, FormScaned),
-		check_tokens(FormalizePid, StringTail, NextLine)
-	; {form, FormScaned, Comments} ->
-		?assertEqual(Expect, FormScaned),
-		?assert(lists:all(fun({comment, _, _}) -> true end, Comments)),
 		check_tokens(FormalizePid, StringTail, NextLine)
 	end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Moc      function %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Setup/cleanup function %%%%%%%%%%%%%%%%%%%%%%%
 setup() ->
-	meck:new(chain),
+	meck:new(chainer),
+	meck:expect(chainer, get, fun() -> receive M -> M end end),
 	spawn(fun() -> ok = formalize:tokens2syntax([]) end).
 
 cleanup(WorkPid) ->
 	exit(WorkPid, kill),
-	meck:unload(chain).
+	meck:unload(chainer).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Test suite    function %%%%%%%%%%%%%%%%%%%%%%%
 main_test_() ->
@@ -56,10 +53,10 @@ main_test_() ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Test     function %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 test_formalize(WorkPid) ->
 	TestProcess = self(),
-	meck:expect(chain, send, fun(Message, next, _) ->
+	meck:expect(chainer, send, fun(Message, next, _) ->
 			TestProcess ! Message
 		end),
 	FileName = "../test/data/erl_test_file",
 	{ok, Binary} = file:read_file(FileName),
 	check_tokens(WorkPid, binary_to_list(Binary), 1),
-	?MECK_CHECK(chain).
+	?MECK_CHECK(chainer).

@@ -32,11 +32,12 @@ check_tokens(String, Line) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Moc      function %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Setup/cleanup function %%%%%%%%%%%%%%%%%%%%%%%
 setup() ->
-	meck:new(chain),
+	meck:new(chainer),
+	meck:expect(chainer, get, fun() -> receive M -> M end end),
 	spawn(fun() -> ok = tokenizer:source2token([]) end).
 
 cleanup(WorkPid) ->
-	meck:unload(chain),
+	meck:unload(chainer),
 	exit(WorkPid, kill).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Test suite    function %%%%%%%%%%%%%%%%%%%%%%%
@@ -49,18 +50,18 @@ main_test_() ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Test     function %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 test_file_tokenizer(WorkPid) ->
 	TestProcess = self(),
-	meck:expect(chain, send, fun(Message, next, _) ->
+	meck:expect(chainer, send, fun(Message, next, _) ->
 			TestProcess ! Message
 		end),
 	FileName = "../test/data/erl_test_file",
 	WorkPid ! {file, FileName},
 	{ok, Binary} = file:read_file(FileName),
 	check_tokens(binary_to_list(Binary), 1),
-	?MECK_CHECK(chain).
+	?MECK_CHECK(chainer).
 
 test_string_tokenizer(WorkPid) ->
 	TestProcess = self(),
-	meck:expect(chain, send, fun(Message, next, _) ->
+	meck:expect(chainer, send, fun(Message, next, _) ->
 			TestProcess ! Message
 		end),
 	FileName = "../test/data/erl_test_file",
@@ -69,4 +70,4 @@ test_string_tokenizer(WorkPid) ->
 	WorkPid ! {string, String},
 	{ok, Binary} = file:read_file(FileName),
 	check_tokens(String, 1),
-	?MECK_CHECK(chain).
+	?MECK_CHECK(chainer).

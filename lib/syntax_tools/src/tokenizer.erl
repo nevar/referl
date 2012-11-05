@@ -11,12 +11,13 @@
 %% @doc Start filter for read and tokenize erlang code
 -spec source2token([term()]) -> no_return().
 source2token(Opt) ->
-	receive {file, FileName} ->
-		read_file(FileName, Opt)
-	; {string, String} ->
-		read_string(String, Opt)
-	; Unknown ->
-		exit({?MODULE, {unknown, Unknown}})
+	case chainer:get()
+		of {file, FileName} ->
+			read_file(FileName, Opt)
+		; {string, String} ->
+			read_string(String, Opt)
+		; Unknown ->
+			exit({?MODULE, {unknown, Unknown}})
 	end.
 
 read_file(FileName, Opt) ->
@@ -42,7 +43,7 @@ read_and_tokenize(FD, LastTokens, Opt, Line) ->
 					exit({erl_scan, Error})
 			end
 		; eof ->
-			chain:send(eof, next, Opt),
+			chainer:send(eof, next, Opt),
 			ok
 		; {error, Reason} ->
 			exit({file, Reason})
@@ -58,7 +59,7 @@ split_by_dot([Token | Tail], Acc, TokensList) ->
 parse_token(FormList, Opt) ->
 	%% TODO: flow controll
 	lists:foreach(fun(Form) ->
-			chain:send({tokens_form, Form}, next, Opt)
+			chainer:send({tokens_form, Form}, next, Opt)
 		end, FormList).
 
 read_string(String, Opt) ->
@@ -68,7 +69,7 @@ read_string(String, Opt) ->
 			parse_token(TokenFormList, Opt),
 			Last /= [] andalso
 				parse_token([lists:reverse(Last)], Opt),
-			chain:send(eof, next, Opt),
+			chainer:send(eof, next, Opt),
 			ok
 		; {error, Error, _} ->
 			exit({erl_scan, Error})

@@ -24,7 +24,7 @@ test_expr(WorkPid, String) ->
 
 test_exprs(WorkPid, StringList) ->
 	TestProcess = self(),
-	meck:expect(chain, send, fun(Message, next, _) ->
+	meck:expect(chainer, send, fun(Message, next, _) ->
 			TestProcess ! Message,
 			ok
 		end),
@@ -32,7 +32,7 @@ test_exprs(WorkPid, StringList) ->
 
 test_fun(WorkPid, StringList) ->
 	TestProcess = self(),
-	meck:expect(chain, send, fun(Message, next, _) ->
+	meck:expect(chainer, send, fun(Message, next, _) ->
 			TestProcess ! Message,
 			ok
 		end),
@@ -42,43 +42,50 @@ test_fun(WorkPid, StringList) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Moc      function %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Setup/cleanup function %%%%%%%%%%%%%%%%%%%%%%%
+meck_up() ->
+	meck:new([chainer]),
+	meck:expect(chainer, get, fun() -> receive M -> M end end).
+
+meck_down(_) ->
+	meck:unload([chainer]).
+
 setup() ->
-	meck:new([chain]),
 	spawn(fun() -> ok = documenter:syntax2document([]) end).
 
 cleanup(WorkPid) ->
-	meck:unload([chain]),
 	exit(WorkPid, kill).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Test suite    function %%%%%%%%%%%%%%%%%%%%%%%
 main_test_() ->
-	{foreach, fun setup/0, fun cleanup/1, [
-		?EUNIT_TEST(fun test_macro/1)
-		, ?EUNIT_TEST(fun test_macro_call/1)
-		, ?EUNIT_TEST(fun test_atomic/1)
-		, ?EUNIT_TEST(fun test_list/1)
-		, ?EUNIT_TEST(fun test_binary/1)
-		, ?EUNIT_TEST(fun test_comprehension/1)
-		, ?EUNIT_TEST(fun test_tuple/1)
-		, ?EUNIT_TEST(fun test_expr/1)
-		, ?EUNIT_TEST(fun test_block/1)
-		, ?EUNIT_TEST(fun test_if/1)
-		, ?EUNIT_TEST(fun test_case/1)
-		, ?EUNIT_TEST(fun test_receive/1)
-		, ?EUNIT_TEST(fun test_fun/1)
-		, ?EUNIT_TEST(fun test_try/1)
-		, ?EUNIT_TEST(fun test_query/1)
-		, ?EUNIT_TEST(fun test_match/1)
-		, ?EUNIT_TEST(fun test_call/1)
-		, ?EUNIT_TEST(fun test_pp/1)
-		, ?EUNIT_TEST(fun test_attribute/1)
-		, ?EUNIT_TEST(fun test_type_define/1)
-		, ?EUNIT_TEST(fun test_spec/1)
-		, ?EUNIT_TEST(fun test_record_define/1)
-		, ?EUNIT_TEST(fun test_record/1)
-		, ?EUNIT_TEST(fun test_function/1)
-		, ?EUNIT_TEST(fun test_some_expr/1)
-		]}.
+	{setup, fun meck_up/0, fun meck_down/1,
+		{foreach, fun setup/0, fun cleanup/1, [
+			?EUNIT_TEST(fun test_macro/1)
+			, ?EUNIT_TEST(fun test_macro_call/1)
+			, ?EUNIT_TEST(fun test_atomic/1)
+			, ?EUNIT_TEST(fun test_list/1)
+			, ?EUNIT_TEST(fun test_binary/1)
+			, ?EUNIT_TEST(fun test_comprehension/1)
+			, ?EUNIT_TEST(fun test_tuple/1)
+			, ?EUNIT_TEST(fun test_expr/1)
+			, ?EUNIT_TEST(fun test_block/1)
+			, ?EUNIT_TEST(fun test_if/1)
+			, ?EUNIT_TEST(fun test_case/1)
+			, ?EUNIT_TEST(fun test_receive/1)
+			, ?EUNIT_TEST(fun test_fun/1)
+			, ?EUNIT_TEST(fun test_try/1)
+			, ?EUNIT_TEST(fun test_query/1)
+			, ?EUNIT_TEST(fun test_match/1)
+			, ?EUNIT_TEST(fun test_call/1)
+			, ?EUNIT_TEST(fun test_pp/1)
+			, ?EUNIT_TEST(fun test_attribute/1)
+			, ?EUNIT_TEST(fun test_type_define/1)
+			, ?EUNIT_TEST(fun test_spec/1)
+			, ?EUNIT_TEST(fun test_record_define/1)
+			, ?EUNIT_TEST(fun test_record/1)
+			, ?EUNIT_TEST(fun test_function/1)
+			, ?EUNIT_TEST(fun test_some_expr/1)
+			]}
+		}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Test     function %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 test_macro(WorkPid) ->

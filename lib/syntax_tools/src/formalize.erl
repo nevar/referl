@@ -7,21 +7,22 @@
 %% @doc Tokens -> formal syntax
 -spec tokens2syntax([term()]) -> no_return().
 tokens2syntax(Opt) ->
-	receive {tokens_form, TokenList} ->
-		{TokensForm, Comments} = filter_tokens(TokenList, [], []),
-		%% Okay. We get tokens for form. Lats start out great parser
-		case extend_parser:parse_form(TokensForm)
-			of {ok, Form} ->
-				chain:send({form, Form, Comments}, next, Opt),
-				tokens2syntax(Opt)
-			; {error, Error} ->
-				exit({extend_parser, Error})
-		end
-	; eof ->
-		chain:send(eof, next, Opt),
-		ok
-	; _Unknown ->
-		tokens2syntax(Opt)
+	case chainer:get()
+		of {tokens_form, TokenList} ->
+			{TokensForm, _Comments} = filter_tokens(TokenList, [], []),
+			%% Okay. We get tokens for form. Lats start out great parser
+			case extend_parser:parse_form(TokensForm)
+				of {ok, Form} ->
+					chainer:send({form, Form}, next, Opt),
+					tokens2syntax(Opt)
+				; {error, Error} ->
+					exit({extend_parser, Error})
+			end
+		; eof ->
+			chainer:send(eof, next, Opt),
+			ok
+		; _Unknown ->
+			tokens2syntax(Opt)
 	end.
 
 filter_tokens([], Tokens, Comments) ->

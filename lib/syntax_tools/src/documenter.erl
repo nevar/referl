@@ -9,13 +9,13 @@
 %% @doc Formal syntax -> document
 -spec syntax2document([term()]) -> no_return().
 syntax2document(Opt) ->
-	receive {form, Form} ->
-		Doc = prettypr:break(document(Form, Opt)),
-		ok = chain:send({document, Doc}, next, Opt),
-		syntax2document(Opt)
-	; eof ->
-		ok = chain:send(eof, next, Opt),
-		ok
+	case chainer:get()
+		of {form, Form} ->
+			Doc = prettypr:break(document(Form, Opt)),
+			ok = chainer:send({document, Doc}, next, Opt),
+			syntax2document(Opt)
+		; eof ->
+			ok = chainer:send(eof, next, Opt)
 	end.
 
 %% @doc Make document for abstract syntax
