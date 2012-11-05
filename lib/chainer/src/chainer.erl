@@ -27,10 +27,14 @@
 -spec create(chain(), [term()]) -> {pid(), term()}.
 create(Chain) ->
 	CountOut = count_out(Chain),
-	{ok, NoopPid} = proc_lib:start(chainer, monitor, [CountOut, self()]),
+	{ok, NoopPid} = proc_lib:start(?MODULE, monitor, [CountOut, self()]),
 	ChainOut = erlang:monitor(process, NoopPid),
-	ChainIn = create(Chain, [NoopPid]),
-	{ChainIn, ChainOut}.
+	case create(Chain, [NoopPid])
+		of error ->
+			{[], ChainOut}
+		; ChainIn ->
+			{ChainIn, ChainOut}
+	end.
 
 %% @doc Calculates count of exits from chain
 count_out({in, InList}) ->
@@ -75,14 +79,19 @@ create_chain([], NextPid) ->
 	lists:flatten(NextPid);
 create_chain([ChainElement | Tail], NextPid) when is_tuple(ChainElement) ->
 	NewNextPid = create(ChainElement, NextPid),
-	create_chain(Tail, NewNextPid).
+	case lists:any(fun(Pid) -> Pid == error end, NewNextPid)
+		of true ->
+			error
+		; false ->
+			create_chain(Tail, NewNextPid)
+	end.
 
 %% @doc Start chain element
 %%
 %% If chain element is simple proces, then start it with confirmation of
 %% run.
 create({{'fun', Fun}, Opt}, NextPid) ->
-	[proc_lib:start(chainer, starter, [self(), {Fun, Opt}, NextPid])];
+	[proc_lib:start(?MODULE, starter, [self(), {Fun, Opt}, NextPid])];
 create({in, InList}, NextPid) ->
 	lists:flatten([create(In, NextPid) || In <- InList]);
 create({chain, Chain}, NextPid) ->
@@ -90,7 +99,15 @@ create({chain, Chain}, NextPid) ->
 
 %% @doc Start with feedback to parent
 starter(Parent, {Fun, Opt}, NextPid) ->
-	lists:foreach(fun erlang:link/1, NextPid),
+	lists:foreach(fun(Pid) ->
+			case is_process_alive(Pid)
+				of true ->
+					erlang:link(Pid)
+				; _ ->
+					proc_lib:init_ack(Parent, error),
+					exit(normal)
+			end
+		end, NextPid),
 	proc_lib:init_ack(Parent, self()),
 	Fun([{next, NextPid} | Opt]).
 
