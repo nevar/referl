@@ -99,6 +99,10 @@ document({record, _, Expr, Name, Fields}, Opt) ->
 	NameDoc = text("#" ++ io_lib:write_atom(Name)),
 	ArgsDoc = prettypr:par(list2doc(Fields, ?COMMA, clear_p(Opt))),
 	join([ExprDoc, NameDoc, text("{"), ArgsDoc, text("}")]);
+document({ann_type, _, Name, Type}, Opt) ->
+	NameDoc = document(Name, Opt),
+	TypeDoc = document(Type, Opt),
+	join([NameDoc, text(" :: "), TypeDoc]);
 document({type, _, nil, []}, _) ->
 	text("[]");
 document({type, _, range, [{integer, _, R}, {integer, _, L}]}, _) ->

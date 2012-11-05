@@ -400,6 +400,7 @@ test_spec(WorkPid) ->
 		"-spec test() ->\n"
 		"       loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong_type()\n"
 		"      ; () -> ok.\n",
+		"-spec test(X :: atom(), Y :: integer()) -> no_return().\n",
 		"-spec test(X) -> X when X :: integer()\n"
 		"      ; (Y) -> Y when Y :: atom().\n"
 		]),
