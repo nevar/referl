@@ -6,6 +6,8 @@
 -export([create/1]).
 -export([in/2, out/1]).
 
+-export([chain/1, in/1, element/2]).
+
 %% Internal API
 -export([send/2, send/3]).
 -export([get/0]).
@@ -13,9 +15,13 @@
 %% Internal function
 -export([monitor/2, starter/3]).
 
--type chain_pid() :: {'fun', fun(([term()]) -> no_return())}.
--type chain_option() :: [term()].
--type chain() :: {chain, [{chain_pid(), chain_option()} | chain()]}.
+-type element_opt() :: [atom() | {atom(), term()}].
+-type element_start() :: fun((element_opt()) -> no_return()).
+
+-type simple_element() :: {{'fun', element_start()}, element_opt()}.
+-type in() :: {in, [element()]}.
+-type element() :: in() | simple_element() | chain().
+-type chain() :: {chain, [element()]}.
 
 %% @doc Create new chain
 -spec create(chain(), [term()]) -> {pid(), term()}.
@@ -131,3 +137,18 @@ out(ChainID) ->
 		; {'DOWN', ChainID, process, _, normal} ->
 			chain_end
 	end.
+
+%% @doc Chain
+-spec chain(list(element())) -> chain().
+chain(ElementList) when is_list(ElementList) ->
+	{chain, ElementList}.
+
+%% @doc Many in
+-spec in(list(element())) -> in().
+in(ElementList) when is_list(ElementList) ->
+	{in, ElementList}.
+
+%% @doc One element
+-spec element(element_start(), element_opt()) -> simple_element().
+element(Fun, Opt) ->
+	{{'fun', Fun}, Opt}.
