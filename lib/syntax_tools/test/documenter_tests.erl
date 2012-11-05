@@ -357,7 +357,8 @@ test_attribute(WorkPid) ->
 		"-import(io, [format/1]).\n",
 		"-file(\"test.erl\", 1).\n",
 		"-vsn(1).\n",
-		"-custom(1).\n"
+		"-custom(1).\n",
+		"-compile({inline, [pi/0, pi_2/0]}).\n"
 		]),
 	?EUNIT_WAIT_FOR_EXIT(WorkPid, fun(Pid) -> Pid ! eof end, normal).
 

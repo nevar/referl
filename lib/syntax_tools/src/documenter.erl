@@ -16,8 +16,6 @@ syntax2document(Opt) ->
 	; eof ->
 		ok = chain:send(eof, next, Opt),
 		ok
-	; _Unknown ->
-		syntax2document(Opt)
 	end.
 
 %% @doc Make document for abstract syntax
@@ -47,9 +45,9 @@ document({attribute, _, type, {TypeName, Type, Args}}, Opt) ->
 	make_type_def(type, TypeName, Type, Args, Opt);
 document({attribute, _, opaque, {TypeName, Type, Args}}, Opt) ->
 	make_type_def(opaque, TypeName, Type, Args, Opt);
-document({attribute, _, spec, {{Name, _}, Types}}, Opt) ->
+document({attribute, _, spec, {Name, Types}}, Opt) ->
 	TypesDoc = list2doc(Types, [spec | Opt]),
-	SpecDoc = clauses(text(atom_to_list(Name)), text("; "), TypesDoc),
+	SpecDoc = clauses(document(Name, Opt), text("; "), TypesDoc),
 	join([text("-spec "), SpecDoc, text(".")]);
 document({attribute, _, record, {Name, Fields}}, Opt) ->
 	NameDoc = text(io_lib:write_atom(Name)),
@@ -65,12 +63,14 @@ document({attribute, _, import, Import}, _) ->
 			module_name(Name)
 	end,
 	join([text("-import("), ImportBody, text(").")]);
-document({attribute, _, file, {Name, Line}}, _) ->
+document({attribute, _, file, Name, Line}, _) ->
 	join([text("-file("), text(io_lib:write_string(Name)), text(", "),
 		text(integer_to_list(Line)), text(").")]);
 document({attribute, _, Name, Term}, Opt) ->
-	Doc = document(extend_parser:abstract(Term), Opt),
+	Doc = document(Term, Opt),
 	join([text("-" ++ io_lib:write_atom(Name) ++ "("), Doc, text(").")]);
+document({fun_arity, _, Name, Arity}, _) ->
+	text(io_lib:write_atom(Name) ++ "/" ++ integer_to_list(Arity));
 document({record_field, _, Name}, Opt) ->
 	document(Name, Opt);
 document({record_field, _, Name, Value}, Opt) ->
@@ -114,14 +114,14 @@ document({type, _, tuple, Args}, Opt) ->
 		ArgsDoc = prettypr:par(list2doc(Args, ?COMMA, Opt)),
 		join([text("{"), ArgsDoc, text("}")])
 	end;
-document({type, _, 'fun', [InSpec, OutSpec]}, Opt) ->
+document({type, _, 'fun', InSpec, OutSpec}, Opt) ->
 	ArgsDoc = case InSpec
 		of {type, _, any} ->
 			text("...")
 		; {type, _, product, Args} ->
 			prettypr:par(list2doc(Args, ?COMMA, Opt))
 	end,
-	InDoc = prettypr:beside(add_parentheses(ArgsDoc), text(" ->")), 
+	InDoc = prettypr:beside(add_parentheses(ArgsDoc), text(" ->")),
 	Doc = prettypr:par([InDoc, document(OutSpec, Opt)], 1),
 	IsSpec = proplists:get_bool(spec, Opt),
 	if IsSpec ->
@@ -132,24 +132,23 @@ document({type, _, 'fun', [InSpec, OutSpec]}, Opt) ->
 document({type, _, bounded_fun, [Fun, When]}, Opt) ->
 	WhenDoc = prettypr:par(list2doc(When, ?COMMA, Opt)),
 	prettypr:par([document(Fun, Opt), prettypr:follow(text("when"), WhenDoc, 1)]);
-document({type, _, binary, [{integer, _, BaseSize}, {integer, _, UnitSize}]}, _) ->
-	Size = case {BaseSize, UnitSize}
-		of {0, 0} ->
-			prettypr:empty()
-		; {_, 0} ->
-			text("_: " ++ integer_to_list(BaseSize))
-		; {0, _} ->
-			text("_:_ * " ++ integer_to_list(UnitSize))
-		; _ ->
-			join([text("_: " ++ integer_to_list(BaseSize)), text(", "),
-				text("_:_ * " ++ integer_to_list(UnitSize))])
+document({type, _, binary, {BaseSize, UnitSize}}, _) ->
+	Size = if BaseSize ==0, UnitSize == 0 ->
+		prettypr:empty()
+	; UnitSize == 0 ->
+		text("_: " ++ integer_to_list(BaseSize))
+	; BaseSize == 0 ->
+		text("_:_ * " ++ integer_to_list(UnitSize))
+	; true ->
+		join([text("_: " ++ integer_to_list(BaseSize)), text(", "),
+		      text("_:_ * " ++ integer_to_list(UnitSize))])
 	end,
 	join([text("<<"), Size, text(">>")]);
 document({type, _, TypeName, Args}, Opt) ->
 	TypeNameDoc = text(atom_to_list(TypeName)),
 	ArgsDoc = add_parentheses(prettypr:par(list2doc(Args, ?COMMA, Opt))),
 	prettypr:beside(TypeNameDoc, ArgsDoc);
-document({remote_type, Line, [Module, Name, Args]}, Opt) ->
+document({remote_type, Line, Module, Name, Args}, Opt) ->
 	document({call, Line, {remote, Line, Module, Name}, Args}, Opt);
 document({atom, _, module, Module}, _) ->
 	ModuleBody = case Module
@@ -209,9 +208,9 @@ document({'receive', _, Clauses, Expr, Body}, Opt) ->
 	After = prettypr:above(AfterHead, prettypr:nest(1, AfterBody)),
 	join_line([text("receive"), prettypr:nest(1, ReceiveBody), After,
 		text("end")]);
-document({'fun', _, {function, Name, Arity}}, _) ->
+document({'fun', _, Name, Arity}, _) ->
 	text("fun " ++ io_lib:write_atom(Name) ++ "/" ++ integer_to_list(Arity));
-document({'fun', _, {function, Module, Name, Arity}}, _) ->
+document({'fun', _, Module, Name, Arity}, _) ->
 	text("fun " ++ io_lib:write_atom(Module) ++ ":" ++
 		io_lib:write_atom(Name) ++ "/" ++ integer_to_list(Arity));
 document({'fun', _, {clauses, Clauses}}, Opt) ->
@@ -463,14 +462,12 @@ list2doc(List, ToDoc, Separator, Opt) ->
 
 list2doc([], _, _, _, []) ->
 	[prettypr:empty()];
+list2doc(List, ToDoc, Opt, none, []) ->
+	[ToDoc(Element, Opt) || Element <- List];
 list2doc([Last], ToDoc, Opt, _, Acc) ->
 	lists:reverse([ToDoc(Last, Opt) | Acc]);
-list2doc([Element | Tail], ToDoc, Opt, none, Acc) ->
-	Doc = ToDoc(Element, Opt),
-	list2doc(Tail, ToDoc, Opt, none, [Doc | Acc]);
 list2doc([Element | Tail], ToDoc, Opt, Separator, Acc) ->
-	Doc = ToDoc(Element, Opt),
-	DocSep = prettypr:beside(Doc, Separator),
+	DocSep = prettypr:beside(ToDoc(Element, Opt), Separator),
 	list2doc(Tail, ToDoc, Opt, Separator, [DocSep | Acc]).
 
 add_parentheses(Expr) ->
