@@ -16,13 +16,11 @@ tokens2syntax(Opt) ->
 					chainer:send({form, Form}, next, Opt),
 					tokens2syntax(Opt)
 				; {error, Error} ->
-					exit({extend_parser, Error})
+					exit(Error)
 			end
 		; eof ->
 			chainer:send(eof, next, Opt),
 			ok
-		; _Unknown ->
-			tokens2syntax(Opt)
 	end.
 
 filter_tokens([], Tokens, Comments) ->

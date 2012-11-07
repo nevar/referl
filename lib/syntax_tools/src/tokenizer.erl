@@ -27,7 +27,7 @@ read_file(FileName, Opt) ->
 			read_and_tokenize(FD, [], Opt, 1),
 			file:close(FD)
 		; {error, Reason} ->
-			exit({file, Reason})
+			exit({0, file, Reason})
 	end.
 
 read_and_tokenize(FD, LastTokens, Opt, Line) ->
@@ -40,13 +40,13 @@ read_and_tokenize(FD, LastTokens, Opt, Line) ->
 					parse_token(TokenFormList, Opt),
 					read_and_tokenize(FD, TokenLeft, Opt, Line + 1)
 				; {error, Error, _} ->
-					exit({erl_scan, Error})
+					exit(Error)
 			end
 		; eof ->
 			chainer:send(eof, next, Opt),
 			ok
 		; {error, Reason} ->
-			exit({file, Reason})
+			exit({0, file, Reason})
 	end.
 
 split_by_dot([], Acc, TokensList) ->
