@@ -335,7 +335,9 @@ test_call(WorkPid) ->
 		"Module:Name()",
 		"Module:Name(1, 2)",
 		"module:Name()",
-		"Module:name()"
+		"Module:name()",
+		".erlang:nodes()",
+		"sub.sub.sub.pacage:m()"
 		]),
 	?EUNIT_WAIT_FOR_EXIT(WorkPid, fun(Pid) -> Pid ! eof end, normal).
 

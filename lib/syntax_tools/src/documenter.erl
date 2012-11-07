@@ -318,6 +318,14 @@ document({call, _, Name, Args}, Opt) ->
 	ArgsDoc = prettypr:par(list2doc(Args, ?COMMA, clear_p(Opt))),
 	Doc = prettypr:beside(NameDoc, add_parentheses(ArgsDoc)),
 	add_parentheses(Doc, Priority, Opt);
+document({dot_name, _, First, Second}, Opt) ->
+	FirstDoc = case First
+		of {atom, _, ''} ->
+			prettypr:empty()
+		; _ ->
+			document(First, Opt)
+	end,
+	join([FirstDoc, text("."), document(Second, Opt)]);
 document({remote, _, Module, Name}, Opt) ->
 	ModuleDoc = document(Module, Opt),
 	NameDoc = document(Name, Opt),

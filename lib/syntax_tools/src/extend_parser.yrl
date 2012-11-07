@@ -283,8 +283,8 @@ record_field -> atom '=' expr : {record_field,?line('$1'),'$1','$3'}.
 expr_800 -> expr_900 ':' expr_max : {remote, ?line('$2'), '$1', '$3'}.
 expr_800 -> expr_900              : '$1'.
 
-expr_900 -> '.' atom              : {record_field, ?line('$1'), {atom, ?line('$1'), ''}, '$2'}.
-expr_900 -> expr_900 '.' atom     : {record_field, ?line('$2'), '$1', '$3'}.
+expr_900 -> '.' atom              : {dot_name, ?line('$1'), {atom, ?line('$1'), ''}, '$2'}.
+expr_900 -> expr_900 '.' atom     : {dot_name, ?line('$2'), '$1', '$3'}.
 expr_900 -> expr_max              : '$1'.
 
 expr_max -> '?' macro                         : {macro_string, ?line('$1'), element(3, '$2')}.
