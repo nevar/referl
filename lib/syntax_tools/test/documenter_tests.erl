@@ -417,12 +417,12 @@ test_record_define(WorkPid) ->
 	test_fun(WorkPid, [
 		"-record(test, {field1, field2}).\n",
 		"-record(test, {loooooooooooooooooooooooooooooooooooooooooooooooooongName,\n"
-		"\t       field1, field2}).\n",
+		"               field1, field2}).\n",
 		"-record(test, {field1 = 1, field2 = atom}).\n",
 		"-record(test, {field1 :: undefined | integer(),\n"
-		"\t       field2 :: undefined | atom()}).\n",
+		"               field2 :: undefined | atom()}).\n",
 		"-record(test, {field1 = 1 :: integer(),\n"
-		"\t       field2 = atom :: atom()}).\n"
+		"               field2 = atom :: atom()}).\n"
 		]),
 	?EUNIT_WAIT_FOR_EXIT(WorkPid, fun(Pid) -> Pid ! eof end, normal).
 
@@ -469,9 +469,9 @@ test_function(WorkPid) ->
 test_some_expr(WorkPid) ->
 	test_exprs(WorkPid, [
 		"GuardsDoc = list2doc_(Guard,\n"
-		"\t\t      fun (Element, LocOpt) ->\n"
-		"\t\t       prettypr:par(list2doc_(Element, ?COMMA, LocOpt))\n"
-		"\t\t      end,\n"
-		"\t\t      floating_text(\";\"), NewOpt)"
+		"                      fun (Element, LocOpt) ->\n"
+		"                       prettypr:par(list2doc_(Element, ?COMMA, LocOpt))\n"
+		"                      end,\n"
+		"                      floating_text(\";\"), NewOpt)"
 		]),
 	?EUNIT_WAIT_FOR_EXIT(WorkPid, fun(Pid) -> Pid ! eof end, normal).
