@@ -50,7 +50,7 @@ meck_down(_) ->
 	meck:unload([chainer]).
 
 setup() ->
-	spawn(fun() -> ok = documenter:syntax2document([]) end).
+	spawn(fun() -> ok = documenter:syntax2document([{indent_size, 1}]) end).
 
 cleanup(WorkPid) ->
 	exit(WorkPid, kill).

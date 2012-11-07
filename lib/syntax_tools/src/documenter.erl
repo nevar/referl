@@ -4,19 +4,34 @@
 
 -define(COMMA, prettypr:floating(prettypr:text(","))).
 
+-record(opt, {
+	indent = 2 :: pos_integer()
+	, priority = 0 :: pos_integer()
+	, in_clause = undefined :: atom()
+	}).
+
 -export([syntax2document/1]).
 
 %% @doc Formal syntax -> document
 -spec syntax2document([term()]) -> no_return().
 syntax2document(Opt) ->
+	DocOpt = make_opt(Opt),
+	loop(DocOpt).
+
+loop(Opt) ->
 	case chainer:get()
 		of {form, Form} ->
 			Doc = prettypr:break(document(Form, Opt)),
 			ok = chainer:send({document, Doc}, next, Opt),
-			syntax2document(Opt)
+			loop(Opt)
 		; eof ->
 			ok = chainer:send(eof, next, Opt)
 	end.
+
+%% @doc Make documenter options
+make_opt(Opt) ->
+	Indent = proplists:get_value(indent_size, Opt, 2),
+	#opt{indent = Indent}.
 
 %% @doc Make document for abstract syntax
 document({attribute, _, define, [Name, Body]}, Opt) ->
@@ -46,7 +61,7 @@ document({attribute, _, type, {TypeName, Type, Args}}, Opt) ->
 document({attribute, _, opaque, {TypeName, Type, Args}}, Opt) ->
 	make_type_def(opaque, TypeName, Type, Args, Opt);
 document({attribute, _, spec, {Name, Types}}, Opt) ->
-	TypesDoc = list2doc(Types, [spec | Opt]),
+	TypesDoc = list2doc(Types, set_in_clause(spec, Opt)),
 	SpecDoc = clauses(document(Name, Opt), text("; "), TypesDoc),
 	join([text("-spec "), SpecDoc, text(".")]);
 document({attribute, _, record, {Name, Fields}}, Opt) ->
@@ -127,15 +142,14 @@ document({type, _, 'fun', InSpec, OutSpec}, Opt) ->
 	end,
 	InDoc = prettypr:beside(add_parentheses(ArgsDoc), text(" ->")),
 	Doc = prettypr:par([InDoc, document(OutSpec, Opt)], 1),
-	IsSpec = proplists:get_bool(spec, Opt),
-	if IsSpec ->
+	if Opt#opt.in_clause == spec ->
 		Doc
 	; true ->
 		prettypr:beside(text("fun"), add_parentheses(Doc))
 	end;
 document({type, _, bounded_fun, [Fun, When]}, Opt) ->
 	WhenDoc = prettypr:par(list2doc(When, ?COMMA, Opt)),
-	prettypr:par([document(Fun, Opt), prettypr:follow(text("when"), WhenDoc, 1)]);
+	prettypr:follow(prettypr:beside(document(Fun, Opt), text(" when")), WhenDoc, 1);
 document({type, _, binary, {BaseSize, UnitSize}}, _) ->
 	Size = if BaseSize ==0, UnitSize == 0 ->
 		prettypr:empty()
@@ -185,32 +199,32 @@ document({'catch', _, Right}, Opt) ->
 	Doc = prettypr:par([text("catch"), RightDoc], 1),
 	add_parentheses(Doc, Priority, Opt);
 document({function, _, Name, _Arity, Clauses}, Opt) ->
-	NewOpt = [{clause, function} | clear_p(Opt)],
+	NewOpt = set_in_clause(function, Opt),
 	NameDoc = text(io_lib:write_atom(Name)),
 	ClausesDoc = function_clauses(NameDoc, list2doc(Clauses, NewOpt)),
 	prettypr:beside(ClausesDoc, text("."));
 document({'if', _, Clauses}, Opt) ->
-	NewOpt = [{clause, 'if'} | clear_p(Opt)],
+	NewOpt = set_in_clause('if', Opt),
 	ClausesDoc = list2doc(Clauses, NewOpt),
 	prettypr:above(clauses(text("if "), text("; "), ClausesDoc), text("end"));
 document({'case', _, Expr, Clauses}, Opt) ->
-	NewOpt = [{clause, 'case'} | clear_p(Opt)],
+	NewOpt = set_in_clause('case', Opt),
 	ExprDoc = prettypr:beside(text("case "), document(Expr, NewOpt)),
 	Body = clauses(text("of "), text("; "), list2doc(Clauses, NewOpt)),
-	join_line([ExprDoc, prettypr:nest(1, Body), text("end")]);
+	join_line([ExprDoc, prettypr:nest(Opt#opt.indent, Body), text("end")]);
 document({'receive', _, Clauses}, Opt) ->
-	NewOpt = [{clause, 'receive'} | clear_p(Opt)],
+	NewOpt = set_in_clause('receive', Opt),
 	Body = clauses(prettypr:empty(), text("; "), list2doc(Clauses, NewOpt)),
-	join_line([text("receive"), prettypr:nest(1, Body), text("end")]);
+	join_line([text("receive"), prettypr:nest(Opt#opt.indent, Body), text("end")]);
 document({'receive', _, Clauses, Expr, Body}, Opt) ->
-	NewOpt = [{clause, 'receive'} | clear_p(Opt)],
+	NewOpt = set_in_clause('receive', Opt),
 	ClausesDoc = list2doc(Clauses, NewOpt),
 	ReceiveBody = clauses(prettypr:empty(), text("; "), ClausesDoc),
 	AfterBody = join_line(list2doc(Body, ?COMMA, NewOpt)),
 	AfterHead = join([text("after "), document(Expr, NewOpt),
 		floating_text(" ->")]),
-	After = prettypr:above(AfterHead, prettypr:nest(1, AfterBody)),
-	join_line([text("receive"), prettypr:nest(1, ReceiveBody), After,
+	After = prettypr:above(AfterHead, prettypr:nest(Opt#opt.indent, AfterBody)),
+	join_line([text("receive"), prettypr:nest(Opt#opt.indent, ReceiveBody), After,
 		text("end")]);
 document({'fun', _, Name, Arity}, _) ->
 	text("fun " ++ io_lib:write_atom(Name) ++ "/" ++ integer_to_list(Arity));
@@ -218,39 +232,39 @@ document({'fun', _, Module, Name, Arity}, _) ->
 	text("fun " ++ io_lib:write_atom(Module) ++ ":" ++
 		io_lib:write_atom(Name) ++ "/" ++ integer_to_list(Arity));
 document({'fun', _, {clauses, Clauses}}, Opt) ->
-	ClausesDoc = list2doc(Clauses, [{clause, 'fun'} | clear_p(Opt)]),
+	ClausesDoc = list2doc(Clauses, set_in_clause('fun', Opt)),
 	join_line([clauses(text("fun "), text("; "), ClausesDoc), text("end")]);
 document({'try',_, Expr, Match, Catch, After}, Opt) ->
-	NewOpt = [{clause, 'try'} | clear_p(Opt)],
+	NewOpt = set_in_clause('try', Opt),
 	ExprDoc = prettypr:beside(text("try "),
 		prettypr:sep(list2doc(Expr, ?COMMA, NewOpt))),
 	MatchDoc = if Match == [] ->
 		prettypr:empty()
 	; true ->
 		MatchClauses = list2doc(Match, NewOpt),
-		prettypr:nest(1, clauses(text("of "), text("; "), MatchClauses))
+		prettypr:nest(Opt#opt.indent, clauses(text("of "), text("; "), MatchClauses))
 	end,
 	CatchDoc = if Catch == [] ->
 		prettypr:empty()
 	; true ->
-		CatchOpt = [{clause, 'catch'} | clear_p(Opt)],
+		CatchOpt = set_in_clause('catch', clear_p(Opt)),
 		CatchClauses = list2doc(Catch, CatchOpt),
 		CatchBody = clauses(prettypr:empty(), text("; "), CatchClauses),
-		prettypr:above(text("catch"), prettypr:nest(1, CatchBody))
+		prettypr:above(text("catch"), prettypr:nest(Opt#opt.indent, CatchBody))
 	end,
 	AfterDoc = if After == [] ->
 		prettypr:empty()
 	; true ->
 		AfterBody = join_line(list2doc(After, ?COMMA, NewOpt)),
-		prettypr:above(text("after"), prettypr:nest(1, AfterBody))
+		prettypr:above(text("after"), prettypr:nest(Opt#opt.indent, AfterBody))
 	end,
 	prettypr:sep([ExprDoc, MatchDoc, CatchDoc, AfterDoc, text("end")]);
 document({'query', _, Query}, Opt) ->
-	join_line([text("query"), prettypr:nest(1, document(Query, Opt)),
+	join_line([text("query"), prettypr:nest(Opt#opt.indent, document(Query, Opt)),
 		floating_text("end")]);
 document({clause, _, Args, Guard, Body}, Opt) ->
 	NewOpt = new(Opt),
-	Type = proplists:get_value(clause, Opt),
+	Type = Opt#opt.in_clause,
 	ArgsDoc = list2doc(Args, ?COMMA, NewOpt),
 	% Make document on list of list
 	MakeGuardAnd = fun(Element, LocOpt) ->
@@ -291,7 +305,7 @@ document({clause, _, Args, Guard, Body}, Opt) ->
 		end
 	end,
 	prettypr:above(prettypr:sep([ClauseHead, floating_text("->")]),
-		prettypr:nest(1, BodyDoc));
+		prettypr:nest(Opt#opt.indent, BodyDoc));
 document({match, _, Left, Right}, Opt) ->
 	{PriorityL, Priority, PriorityR} = extend_parser:inop_prec('='),
 	LeftDoc = document(Left, set_priority(PriorityL, Opt)),
@@ -363,7 +377,7 @@ document({tuple, _, Elements}, Opt) ->
 	join([text("{"), Doc, floating_text("}")]);
 document({block, _, Body}, Opt) ->
 	Doc = prettypr:sep(list2doc(Body, ?COMMA, clear_p(Opt))),
-	prettypr:sep([text("begin"), prettypr:nest(1, Doc), text("end")]);
+	prettypr:sep([text("begin"), prettypr:nest(Opt#opt.indent, Doc), text("end")]);
 document({string, _, String}, _) ->
 	%% TODO: split string by word
 	text(io_lib:write_string(String));
@@ -475,16 +489,15 @@ list2doc([Element | Tail], ToDoc, Opt, Separator, Acc) ->
 	list2doc(Tail, ToDoc, Opt, Separator, [DocSep | Acc]).
 
 add_parentheses(Expr) ->
-	add_parentheses(Expr, -1, []).
+	join([floating_text("("), Expr, floating_text(")")]).
 
 %% @doc Add parentheses
-add_parentheses(Expr, Priority, Opt) ->
-	CurrentPriority = proplists:get_value(priority, Opt, 0),
-	if CurrentPriority > Priority ->
-		join([floating_text("("), Expr, floating_text(")")])
-	; true ->
-		Expr
-	end.
+add_parentheses(Expr, Priority, #opt{priority = CurrentPriority}) when
+	CurrentPriority > Priority
+->
+	add_parentheses(Expr);
+add_parentheses(Expr, _, _) ->
+	Expr.
 
 %% @doc Concatenate list of documents withot separator
 join_line(Document) ->
@@ -524,18 +537,19 @@ text(String) ->
 	prettypr:text(String).
 
 set_priority(P, Opt) ->
-	[{priority, P} | Opt].
+	Opt#opt{priority = P}.
 
 set_max_p(Opt) ->
-	[{priority, erl_parse:max_prec()} | Opt].
+	Opt#opt{priority = erl_parse:max_prec()}.
 
 clear_p(Opt) ->
-	proplists:delete(priority, Opt).
+	Opt#opt{priority = 0}.
 
-new(Opt) ->
-	Opt1 = clear_p(Opt),
-	Opt2 = proplists:delete(clause, Opt1),
-	[{clause, undefined} | Opt2].
+set_in_clause(Type, Opt) ->
+	Opt#opt{priority = 0, in_clause = Type}.
+
+new(#opt{indent = I}) ->
+	#opt{indent = I}.
 
 %%%%%% @doc Make document for abstract syntax
 %%%%% Erlang comment
